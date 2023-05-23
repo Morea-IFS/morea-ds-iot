@@ -8,10 +8,10 @@
 
 // ############# VARIABLES ############### //
 
-const char* SSID = "Vieira"; // rede wifi
-const char* PASSWORD = "12345678"; // senha da rede wifi
+const char* SSID = "ssid"; // rede wifi
+const char* PASSWORD = "password"; // senha da rede wifi
 
-String BASE_URL = "http://192.168.51.141";
+String BASE_URL = "http://url";
 
 // ############# PROTOTYPES ############### //
 
@@ -78,9 +78,8 @@ String makeRequest(String path)
   String response =  http.getString();
   http.end();
   return response;
-  }else{ Serial.println("begin error"); return "";}
-
-  
+    } else{ Serial.println("begin error"); return "";
+  }
 }
 
 // ###################################### //
