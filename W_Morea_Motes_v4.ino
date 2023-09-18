@@ -176,7 +176,7 @@ void loop()
 
   freq = (float)contaPulso / (float)intervalo; // Calcula a frequência em pulsos por segundo
 
-  vazao = freq / 5.5;                         // Converte para L/min, sabendo que 8 Hz (8 pulsos por segundo) = 1 L/min
+  vazao = freq / 7.5;                         // Converte para L/min, sabendo que 8 Hz (8 pulsos por segundo) = 1 L/min
   litros = vazao / (60.0 / (float)intervalo); // Recebe o volume em Litros consumido no intervalo atual.
   volume += litros;                           // Acumular o volume total desde o início da execução
 
