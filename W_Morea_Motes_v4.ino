@@ -331,11 +331,11 @@ void setVazaoDisplay()
   lcd.write(1);
 
   lcd.setCursor(0, 1);
-  lcd.print("Vazao:");
-  lcd.setCursor(9, 1);
+  lcd.print("Vazao");
+  lcd.setCursor(8, 1);
   lcd.print(vazao);
-  lcd.setCursor(13, 1);
-  lcd.print("L/m");
+  lcd.setCursor(12, 1);
+  lcd.print("L/min");
 }
 
 void setErrorDisplay()
