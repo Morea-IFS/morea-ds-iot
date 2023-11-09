@@ -24,55 +24,62 @@
 #define OLED_RESET -1       // Reset pin # (or -1 if sharing Arduino reset pin)
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);     // Display Reading Declaration
 
-byte water[8] = {
-    0b00100,
-    0b00100,
-    0b01110,
-    0b01110,
-    0b11111,
-    0b11111,
-    0b11111,
-    0b01110};
+// ############# ICONS ############### //
 
-byte energy[8] = {
-    0b00001,
-    0b00011,
-    0b00110,
-    0b01100,
-    0b11111,
-    0b00110,
-    0b01100,
-    0b11000};
+static const unsigned char PROGMEM loadingIcon[] = {
+    B00001000,
+    B01100100,
+    B00100010,
+    B10000001,
+    B10000001,
+    B01000100,
+    B00100110,
+    B00010000
+};
 
-byte wifi[8] = {
-    0b00000,
-    0b01110,
-    0b10001,
-    0b00100,
-    0b01010,
-    0b00000,
-    0b00100,
-    0b00000};
+static const unsigned char PROGMEM wifiIcon[] = {
+    B00111000,
+    B01000100,
+    B10000010,
+    B00111000,
+    B01000100,
+    B00000000,
+    B00010000,
+    B00000000
+};
 
-byte Check[8] = {
-    0b00000,
-    0b00001,
-    0b00011,
-    0b10110,
-    0b11100,
-    0b01000,
-    0b00000,
-    0b00000};
+static const unsigned char PROGMEM waterIcon[] = {
+    B00011000,
+    B00011000,
+    B00111100,
+    B00111100,
+    B01111110,
+    B01111110,
+    B00111100,
+    B00011000
+};
 
-byte fail[8] = {
-    0b10001,
-    0b01010,
-    0b01010,
-    0b00100,
-    0b01010,
-    0b01010,
-    0b10001,
-    0b00000};
+static const unsigned char PROGMEM failedIcon[] = {
+    B10000010,
+    B01000100,
+    B00101000,
+    B00010000,
+    B00101000,
+    B01000100,
+    B10000010,
+    B00000000
+};
+
+static const unsigned char PROGMEM successIcon[] = {
+    B00000000,
+    B00000001,
+    B00000010,
+    B00000100,
+    B10001000,
+    B01010000,
+    B00100000,
+    B00000000
+};
 
 // ############# CONSTANTS ############### //
 
@@ -83,7 +90,7 @@ byte fail[8] = {
 
 // WiFi Network
 const char* SSID = "Morea";                             // WiFi SSID
-const char* PASSWORD = "total123**";                    // WiFi Password
+const char* PASSWORD = "morea123**";                    // WiFi Password
 
 // URL Data
 const char *BASE_URL = "http://api.morea-ifs.org";      // WebSite URL (using HTTP and not HTTPS)
@@ -138,7 +145,19 @@ void setup()
     Serial.println(F("SSD1306 allocation failed"));
     for(;;);                                              // Don't proceed, loop forever
   }
+
+  //Drawing Basic Layout on Display
   display.clearDisplay();
+
+  display.writeFastHLine(0, 13, 128, SSD1306_WHITE);
+  display.drawBitmap(3, 3, waterIcon, 8, 8, 1);
+  display.drawBitmap(109, 3, failedIcon, 8, 8, 1);
+  display.drawBitmap(119, 3, loadingIcon, 8, 8, 1);
+
+  
+
+
+  display.display();
 }
 
 // ############### LOOP ################# //
@@ -146,7 +165,13 @@ void setup()
 void loop()
 {
   if (WiFi.status() != WL_CONNECTED)                      // Verify if WiFi is Connected
-  {                     
+  {
+    // Display Manipulation
+    display.writeFillRect(119, 3, 126, 10, SSD1306_BLACK);
+    display.drawBitmap(119, 3, loadingIcon, 8, 8, 1);
+
+    display.display();
+
     initWiFi();                                           // Try to Reconnect if Not
   }
 
@@ -167,7 +192,7 @@ void loop()
 
   if (DEBUG)                                              // Show the Data in the Monitor Serial
   {                                             
-    Serial.println("flowRate: " + String(flowRate));
+    Serial.println("Flow Rate: " + String(flowRate));
     Serial.println("Current Volume: " + String(volume));
     Serial.println("Numbers of Current Collections: " + String(i));
   }
@@ -304,8 +329,8 @@ void initWiFi()
   Serial.println(WiFi.localIP());
 
   // Display Manipulation
+  display.writeFillRect(119, 3, 126, 10, SSD1306_BLACK);
+  display.drawBitmap(119, 3, wifiIcon, 8, 8, 1);
 
-  delay(2500);
-
-  setDefaultDisplay();
+  display.display();
 }
