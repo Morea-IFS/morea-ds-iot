@@ -1,13 +1,28 @@
 // ############# LIBRARIES ############### //
 
+// Wifi Librarie
 #include <ESP8266WiFi.h>
+
+// HTTP Request Libraries
+#include <WiFiClient.h>
 #include <ESP8266HTTPClient.h>
 #include <stdio.h>
-#include <WiFiClient.h>
-#include <LiquidCrystal_I2C.h>
+#include <Wire.h>
 
-// Read Display
-LiquidCrystal_I2C lcd(0x27, 16, 2);
+// Display Libraries
+#include <SPI.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+
+// ############# Display Reading ############### //
+
+// Screen Size Variables
+#define SCREEN_WIDTH 128    // OLED display width, in pixels
+#define SCREEN_HEIGHT 64    // OLED display height, in pixels
+
+// Declaration for an SSD1306 display connected to I2C (SDA, SCL pins)
+#define OLED_RESET -1       // Reset pin # (or -1 if sharing Arduino reset pin)
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);     // Display Reading Declaration
 
 byte water[8] = {
     0b00100,
@@ -59,49 +74,46 @@ byte fail[8] = {
     0b10001,
     0b00000};
 
+// ############# CONSTANTS ############### //
+
+#define PIN_SENSOR 13                                   // Connect This Pin to The Sensor. GPIO 13 (D7 on NodeMCU v3)
+#define DEBUG 1                                         // DEBUG = 1 (Enables the Debug Mode)
+
 // ############# VARIABLES ############### //
 
-// Debug
-const char *SSID = "Morea";          // rede wifi
-const char *PASSWORD = "total123**"; // senha da rede wifi
+// WiFi Network
+const char* SSID = "Morea";                             // WiFi SSID
+const char* PASSWORD = "total123**";                    // WiFi Password
 
-// const char* BASE_URL = "http://192.168.240.73";
+// URL Data
+const char *BASE_URL = "http://api.morea-ifs.org";      // WebSite URL (using HTTP and not HTTPS)
 
-// Production
-// const char* SSID = "Morea"; // rede wifi
-// const char* PASSWORD = "p@assw0rd"; // senha da rede wifi
+const int moteId = 1;                                   // MoteId, Defined in the WebSite Database
+const char *secretKey = "7$WMX70b9$";                   // Mote Key, The Server Only Accept Requests if The Key is Correct
 
-const char *BASE_URL = "http://api.morea-ifs.org";
+char url[512];                                          // This Variable Will be Concatenated With Others to Make the Complete URL 
 
-const int moteId = 1;
-const char *secretKey = "7$WMX70b9$";
+// Others
+const byte interval = 5;                                // Sample Collection Interval (In Seconds)
 
-char url[512];
-
-#define PIN_SENSOR 13 // Pino a ser utilizado para o sensor. GPIO 13 (D7 no NodeMCU v3)
-#define DEBUG 1       // DEBUG = 1 (habilita mensagens no monitor serial)
-
-// Variaveis necessarias
-volatile byte contaPulso; // Variável para a quantidade de pulsos
-float freq;               // Variável para frequência em Hz (pulsos por segundo)
-float vazao = 0;          // Variável para armazenar o valor em L/min
-float litros = 0;         // Variável para o volume de água em cada medição
-float volume = 0;         // Variável para o volume de água acumulado
-byte i;
-byte sentSamples = 0;
-const byte intervalo = 5; // Intervalo de coleta das amostras (em segundos)
+// Measure Variables
+volatile byte countPulse;                               // Variable for the Quantity of Pulses
+float freq;                                             // Variable to the Frequency in Hz (Pulses per Second)
+float flowRate = 0;                                     // Variable to Store The Value in L/min
+float liters = 0;                                       // Variable for the Water Volume in Each Measurement
+float volume = 0;                                       // Variable for the Accumulated Water Volume
+byte i;                                                 // Act as a Counter Variable
 
 // ############# PROTOTYPES ############### //
 
-void initSerial();
-void initWiFi();
-void httpRequest(String path);
-String makeRequest(String path);
+void initWiFi();                                        // Connect to the WiFi
+void httpRequest(String path);                          // Call the Request Function and Store the Payload
+String makeRequest(String path);                        // Make the Request Itself
 void setDefaultDisplay();
 void setErrorDisplay();
 void setSuccessDisplay();
 void setIdDisplay();
-void setVazaoDisplay();
+void setFlowRateDisplay();
 
 void ICACHE_RAM_ATTR incpulso();
 
@@ -110,92 +122,59 @@ void ICACHE_RAM_ATTR incpulso();
 WiFiClient client;
 HTTPClient http;
 
-// ############## SETUP ################# //
+// ############### SETUP ################# //
 
 void setup()
 {
-  initSerial();
+  Serial.begin(115200);
 
-  pinMode(PIN_SENSOR, INPUT);                    // Configura o pino do sensor como entrada
-  attachInterrupt(PIN_SENSOR, incpulso, RISING); // Associa o pino do sensor para interrupção
+  pinMode(PIN_SENSOR, INPUT);                             // Configure pin Sensor as Input
+  attachInterrupt(PIN_SENSOR, incpulso, RISING);          // Associate Sensor pin for Interrupt
 
   // Display Initialization
-  lcd.init();
-  lcd.backlight();
 
-  lcd.createChar(0, water);
-  lcd.createChar(1, energy);
-  lcd.createChar(2, wifi);
-  lcd.createChar(3, Check);
-  lcd.createChar(4, fail);
-
-  // LCD Manipulation
-  lcd.clear();
-
-  lcd.setCursor(1, 0);
-  lcd.write(0);
-  lcd.setCursor(3, 0);
-  lcd.print("Morea Mote");
-  lcd.setCursor(14, 0);
-  lcd.write(1);
-
-  lcd.setCursor(0, 1);
-  lcd.print("Aguardando Dados");
+  if(!display.begin(SSD1306_SWITCHCAPVCC, 0x3C))          // Try to Detect and Inicialize Display
+  {        
+    Serial.println(F("SSD1306 allocation failed"));
+    for(;;);                                              // Don't proceed, loop forever
+  }
+  display.clearDisplay();
 }
 
 // ############### LOOP ################# //
 
 void loop()
 {
-  if (WiFi.status() != WL_CONNECTED)
-  {
-
-    lcd.clear();
-
-    lcd.setCursor(1, 0);
-    lcd.write(0);
-    lcd.setCursor(3, 0);
-    lcd.print("Morea Mote");
-    lcd.setCursor(14, 0);
-    lcd.write(1);
-
-    lcd.setCursor(1, 1);
-    lcd.write(2);
-    lcd.setCursor(3, 1);
-    lcd.print("Conectando..");
-
-    initWiFi();
+  if (WiFi.status() != WL_CONNECTED)                      // Verify if WiFi is Connected
+  {                     
+    initWiFi();                                           // Try to Reconnect if Not
   }
 
-  // ############### CÓDIGO PARA O SENSOR ################# //
-  contaPulso = 0; // Zera a variável
+  // ############### CODE FOR THE SENSOR ################# //
+  countPulse = 0;                                         // Zero the Variable
 
-  sei();                   // Habilita interrupção
-  delay(intervalo * 1000); // Aguarda um intervalo X (em milisegundos)
-  // cli(); //Desabilita interrupção
+  sei();                                                  // Enable Interruption
+  delay(interval * 1000);                                 // Await the Interval X (in Millisecond)
+  // cli();                                               // Disable Interruption
 
-  freq = (float)contaPulso / (float)intervalo; // Calcula a frequência em pulsos por segundo
+  freq = (float)countPulse / (float)interval;             // Calculate the Frequency in Pulses per Second
 
-  vazao = freq / 7.5;                         // Converte para L/min, sabendo que 8 Hz (8 pulsos por segundo) = 1 L/min
-  litros = vazao / (60.0 / (float)intervalo); // Recebe o volume em Litros consumido no intervalo atual.
-  volume += litros;                           // Acumular o volume total desde o início da execução
+  flowRate = freq / 7.5;                                  // Convet to L/min, Knowing That 8 Hz (8 Pulses per Second) = 1 L/min
+  liters = flowRate / (60.0 / (float)interval);           // Liters Consumed in the Current Interval   --Recebe o volume em liters consumido no interval atual.
+  volume += liters;                                       // Variable for the Accumulated Water Volume
 
   i++;
 
-  if (DEBUG)
-  {
-    // Exibe no monitor serial os dados coletados
-    Serial.print("Vazao: ");
-    Serial.println(vazao);
-    Serial.print("Volume Atual: ");
-    Serial.println(volume);
-    Serial.print("Número de coletas realizadas no minuto atual: ");
-    Serial.println(i);
+  if (DEBUG)                                              // Show the Data in the Monitor Serial
+  {                                             
+    Serial.println("flowRate: " + String(flowRate));
+    Serial.println("Current Volume: " + String(volume));
+    Serial.println("Numbers of Current Collections: " + String(i));
   }
 
-  sprintf(url, "%s/?secretKey=%s&nodeID=%d&consumoAtual=%f", BASE_URL, secretKey, moteId, volume);
+  sprintf(url, "%s/?secretKey=%s&nodeID=%d&consumoAtual=%f", BASE_URL, secretKey, moteId, volume);    // Concatenates the Char Variables and Form the Request URL with the Data
 
-  httpRequest(url);
+  httpRequest(url);                                       // Call the HTTPRequest Function
 }
 
 // ############# HTTP REQUEST ################ //
@@ -218,12 +197,11 @@ String makeRequest(String path)
 
   if (http.begin(client, path) && i == 60)
   {
-
     int httpCode = http.GET();
 
     if (httpCode < 0)
     {
-      Serial.println("request error - " + httpCode);
+      Serial.println("Request Error - " + httpCode);
 
       i = 0;
       volume = 0;
@@ -234,7 +212,7 @@ String makeRequest(String path)
     {
       setErrorDisplay();
 
-      Serial.println("Falha no Envio");
+      Serial.println("Sending Failed:");
       Serial.println(httpCode);
 
       i = 0;
@@ -283,107 +261,37 @@ String makeRequest(String path)
 void setDefaultDisplay()
 {
   // LCD Manipulation
-  lcd.clear();
-
-  lcd.setCursor(1, 0);
-  lcd.write(0);
-  lcd.setCursor(3, 0);
-  lcd.print("Morea Mote");
-  lcd.setCursor(14, 0);
-  lcd.write(1);
-
-  lcd.setCursor(0, 1);
-  lcd.print("Consumo:");
-  lcd.setCursor(11, 1);
-  lcd.print(volume);
-  lcd.setCursor(15, 1);
-  lcd.print("L");
 }
 
 void setIdDisplay()
 {
   // LCD Manipulation
-  lcd.clear();
-
-  lcd.setCursor(1, 0);
-  lcd.write(0);
-  lcd.setCursor(3, 0);
-  lcd.print("Morea Mote");
-  lcd.setCursor(14, 0);
-  lcd.write(1);
-
-  lcd.setCursor(3, 1);
-  lcd.print("moteID:");
-  lcd.setCursor(11, 1);
-  lcd.print(moteId);
 }
 
-void setVazaoDisplay()
+void setFlowRateDisplay()
 {
   // LCD Manipulation
-  lcd.clear();
-
-  lcd.setCursor(1, 0);
-  lcd.write(0);
-  lcd.setCursor(3, 0);
-  lcd.print("Morea Mote");
-  lcd.setCursor(14, 0);
-  lcd.write(1);
-
-  lcd.setCursor(0, 1);
-  lcd.print("Vazao:");
-  lcd.setCursor(9, 1);
-  lcd.print(vazao);
-  lcd.setCursor(13, 1);
-  lcd.print("L/m");
 }
 
 void setErrorDisplay()
 {
   // LCD Manipulation
-  lcd.clear();
-
-  lcd.setCursor(1, 0);
-  lcd.write(0);
-  lcd.setCursor(3, 0);
-  lcd.print("Morea Mote");
-  lcd.setCursor(14, 0);
-  lcd.write(1);
-
-  lcd.setCursor(1, 1);
-  lcd.print("Falha no Envio");
 }
 
 void setSuccessDisplay()
 {
   // LCD Manipulation
-  lcd.clear();
-
-  lcd.setCursor(1, 0);
-  lcd.write(0);
-  lcd.setCursor(3, 0);
-  lcd.print("Morea Mote");
-  lcd.setCursor(14, 0);
-  lcd.write(1);
-
-  lcd.setCursor(1, 1);
-  lcd.print("Dados Enviados");
-}
-
-void initSerial()
-{
-  Serial.begin(115200);
 }
 
 void ICACHE_RAM_ATTR incpulso()
 {
-  contaPulso++; // Incrementa a variável de pulsos
+  countPulse++; // Incrementa a variável de pulsos
 }
 
 void initWiFi()
 {
   delay(10);
-  Serial.println("Conectando-se em: " + String(SSID));
+  Serial.println("Connecting to: " + String(SSID));
 
   WiFi.begin(SSID, PASSWORD);
   while (WiFi.status() != WL_CONNECTED)
@@ -392,24 +300,10 @@ void initWiFi()
     Serial.print(".");
   }
   Serial.println();
-  Serial.print("Conectado na Rede " + String(SSID) + " | IP => ");
+  Serial.print("Connected to Netowk: " + String(SSID) + " | IP => ");
   Serial.println(WiFi.localIP());
 
-  lcd.clear();
-
-  lcd.setCursor(1, 0);
-  lcd.write(0);
-  lcd.setCursor(3, 0);
-  lcd.print("Morea Mote");
-  lcd.setCursor(14, 0);
-  lcd.write(1);
-
-  lcd.setCursor(1, 1);
-  lcd.write(2);
-  lcd.setCursor(3, 1);
-  lcd.print("Conectado!");
-  lcd.setCursor(14, 1);
-  lcd.write(3);
+  // Display Manipulation
 
   delay(2500);
 
