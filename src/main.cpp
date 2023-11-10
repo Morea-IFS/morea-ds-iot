@@ -119,8 +119,7 @@ String makeRequest(String path);                        // Make the Request Itse
 void setDefaultDisplay();
 void setErrorDisplay();
 void setSuccessDisplay();
-void setIdDisplay();
-void setFlowRateDisplay();
+void updateDisplayTimer();
 
 void ICACHE_RAM_ATTR incpulso();
 
@@ -151,11 +150,15 @@ void setup()
 
   display.writeFastHLine(0, 13, 128, SSD1306_WHITE);
   display.drawBitmap(3, 3, waterIcon, 8, 8, 1);
-  display.drawBitmap(109, 3, failedIcon, 8, 8, 1);
+  display.drawBitmap(109, 3, loadingIcon, 8, 8, 1);
   display.drawBitmap(119, 3, loadingIcon, 8, 8, 1);
 
-  
+  // Write Timer
+  display.setTextSize(1);
+  display.setTextColor(SSD1306_WHITE);
 
+  display.setCursor(54, 3);
+    display.println("0:00");
 
   display.display();
 }
@@ -167,7 +170,7 @@ void loop()
   if (WiFi.status() != WL_CONNECTED)                      // Verify if WiFi is Connected
   {
     // Display Manipulation
-    display.writeFillRect(119, 3, 126, 10, SSD1306_BLACK);
+    display.writeFillRect(119, 3, 8, 8, SSD1306_BLACK);
     display.drawBitmap(119, 3, loadingIcon, 8, 8, 1);
 
     display.display();
@@ -212,14 +215,14 @@ void httpRequest(String path)
 
   if (!payload)
   {
+    setErrorDisplay();
+
     return;
   }
 }
 
 String makeRequest(String path)
 {
-  setDefaultDisplay();
-
   if (http.begin(client, path) && i == 60)
   {
     int httpCode = http.GET();
@@ -230,6 +233,9 @@ String makeRequest(String path)
 
       i = 0;
       volume = 0;
+      
+      updateDisplayTimer();
+      
       return "";
     }
 
@@ -242,6 +248,9 @@ String makeRequest(String path)
 
       i = 0;
       volume = 0;
+
+      updateDisplayTimer();
+
       return "";
     }
     else
@@ -250,6 +259,8 @@ String makeRequest(String path)
 
       i = 0;
       volume = 0;
+      
+      updateDisplayTimer();
 
       return "";
     }
@@ -262,18 +273,26 @@ String makeRequest(String path)
     i = 0;
     volume = 0;
 
+    updateDisplayTimer();
+
     return response;
   }
   else if (i == 60)
   {
+    setErrorDisplay();
+
     i = 0;
     volume = 0;
+
     Serial.println("Request failed.");
-    setErrorDisplay();
+
+    updateDisplayTimer();
+
     return "";
   }
   else
   {
+    updateDisplayTimer();
     Serial.println("Wait for the request.");
     return "";
   }
@@ -288,29 +307,55 @@ void setDefaultDisplay()
   // LCD Manipulation
 }
 
-void setIdDisplay()
-{
-  // LCD Manipulation
-}
-
-void setFlowRateDisplay()
-{
-  // LCD Manipulation
-}
-
 void setErrorDisplay()
-{
-  // LCD Manipulation
+{    
+  // Display Manipulation
+  display.writeFillRect(109, 3, 8, 8, SSD1306_BLACK);
+  display.drawBitmap(109, 3, failedIcon, 8, 8, 1);
+
+  display.display();
 }
 
 void setSuccessDisplay()
 {
-  // LCD Manipulation
+  // Display Manipulation
+  display.writeFillRect(109, 3, 8, 8, SSD1306_BLACK);
+  display.drawBitmap(109, 3, successIcon, 8, 8, 1);
+
+  display.display();
+}
+
+void updateDisplayTimer()
+{
+  // Calculating the Timer Values
+  int minutes = 4 - floor((i * 5) / 60);
+  int seconds = 60 - ((i * 5) % 60);
+
+  if(seconds == 60)
+  {
+    minutes = minutes + 1;
+    seconds = 0;
+  }
+
+  display.setTextSize(1);
+  display.setTextColor(SSD1306_WHITE);
+
+  display.writeFillRect(54, 3, 25, 8, SSD1306_BLACK);
+  display.setCursor(54, 3);
+
+  if(seconds < 10)
+  {
+    display.println(String(minutes) + ":0" + String(seconds));
+  } else {
+    display.println(String(minutes) + ":" + String(seconds));
+  }
+
+  display.display();
 }
 
 void ICACHE_RAM_ATTR incpulso()
 {
-  countPulse++; // Incrementa a variável de pulsos
+  countPulse++; // Increments Pulse Variable
 }
 
 void initWiFi()
@@ -329,7 +374,7 @@ void initWiFi()
   Serial.println(WiFi.localIP());
 
   // Display Manipulation
-  display.writeFillRect(119, 3, 126, 10, SSD1306_BLACK);
+  display.writeFillRect(119, 3, 8, 8, SSD1306_BLACK);
   display.drawBitmap(119, 3, wifiIcon, 8, 8, 1);
 
   display.display();
