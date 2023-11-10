@@ -26,6 +26,24 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);     //
 
 // ############# ICONS ############### //
 
+static const unsigned char PROGMEM moreaLogo[] =
+{ B00000000, B10000000,
+  B00000000, B10000000,
+  B00000001, B01000000,
+  B00000001, B01000000,
+  B00000001, B01000000,
+  B00010010, B00100000,
+  B00111010, B00100000,
+  B00010100, B10010000,
+  B00100100, B11010000,
+  B00101000, B10001000,
+  B00101001, B00001000,
+  B00101001, B00001000,
+  B00100100, B00010000,
+  B00010011, B10010000,
+  B00001000, B00100000,
+  B00000111, B11000000 };
+
 static const unsigned char PROGMEM loadingIcon[] = {
     B00001000,
     B01100100,
@@ -120,6 +138,7 @@ void setDefaultDisplay();
 void setErrorDisplay();
 void setSuccessDisplay();
 void updateDisplayTimer();
+void updateDisplayCollectedData();
 
 void ICACHE_RAM_ATTR incpulso();
 
@@ -152,13 +171,20 @@ void setup()
   display.drawBitmap(3, 3, waterIcon, 8, 8, 1);
   display.drawBitmap(109, 3, loadingIcon, 8, 8, 1);
   display.drawBitmap(119, 3, loadingIcon, 8, 8, 1);
+  display.drawBitmap(111, 47, moreaLogo, 16, 16, 1);
 
   // Write Timer
   display.setTextSize(1);
   display.setTextColor(SSD1306_WHITE);
 
   display.setCursor(54, 3);
-    display.println("0:00");
+  display.println("0:00");
+  display.setCursor(3, 16);
+  display.println("Consumo Atual: 0.00L");
+  display.setCursor(3, 26);
+  display.println("Vazao: 0.00L/min");
+  display.setCursor(3, 55);
+  display.println("Mote ID: " + String(moteId));
 
   display.display();
 }
@@ -192,6 +218,8 @@ void loop()
   volume += liters;                                       // Variable for the Accumulated Water Volume
 
   i++;
+
+  updateDisplayCollectedData();
 
   if (DEBUG)                                              // Show the Data in the Monitor Serial
   {                                             
@@ -351,6 +379,18 @@ void updateDisplayTimer()
   }
 
   display.display();
+}
+
+void updateDisplayCollectedData() 
+{
+  display.setTextSize(1);
+  display.setTextColor(SSD1306_WHITE);
+
+  display.setCursor(3, 16);
+  display.println("Consumo Atual: " + String(volume) + "L");
+  display.setCursor(3, 26);
+  display.println("Vazao: " + String(flowRate));
+
 }
 
 void ICACHE_RAM_ATTR incpulso()
