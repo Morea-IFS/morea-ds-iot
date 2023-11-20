@@ -386,11 +386,15 @@ void updateDisplayCollectedData()
   display.setTextSize(1);
   display.setTextColor(SSD1306_WHITE);
 
+  display.writeFillRect(3, 16, 123, 8, SSD1306_BLACK);
   display.setCursor(3, 16);
   display.println("Consumo Atual: " + String(volume) + "L");
+  
+  display.writeFillRect(3, 26, 123, 8, SSD1306_BLACK);
   display.setCursor(3, 26);
-  display.println("Vazao: " + String(flowRate));
+  display.println("Vazao: " + String(flowRate) + "L/min");
 
+  display.display();
 }
 
 void ICACHE_RAM_ATTR incpulso()
