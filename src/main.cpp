@@ -71,7 +71,7 @@ static const unsigned char PROGMEM wifiIcon[] = {
 
 static const unsigned char PROGMEM keyIcon[] = {
     B00111000,
-    B00111000,
+    B00011000,
     B00011000,
     B00111100,
     B01100110,
@@ -273,7 +273,7 @@ void setup()
       Serial.println("Deserialization error");
 
       display.writeFillRect(109, 3, 8, 8, SSD1306_BLACK);
-      display.drawBitmap(109, 3, keyIcon, 8, 8, 1);
+      display.drawBitmap(109, 3, failedIcon, 8, 8, 1);
       display.display();
       
       return;
@@ -281,6 +281,11 @@ void setup()
 
     String responseMessage = doc["message"].as<String>();
     Serial.println("Response Message: " + responseMessage);
+
+    
+    display.writeFillRect(109, 3, 8, 8, SSD1306_BLACK);
+    display.drawBitmap(109, 3, keyIcon, 8, 8, 1);
+    display.display();
 
     http.end();
   }
@@ -325,102 +330,74 @@ void loop()
     Serial.println("Numbers of Current Collections: " + String(i));
   }
 
-  path = url + "/api/get-device-data"; // Concatenates the Char Variables and Form the Request URL with the Data
+  path = url + "/api/get-device-data";
+  String data = "deviceId=" + deviceId + "&apiToken=" + apiToken + "&volume=" + volume;
+  Serial.println();
 
-  httpRequest(path);                                       // Call the HTTPRequest Function
-}
+  //  Sending Ip Address to the Server
+  if (http.begin(client, path) && i == 60){
+    http.addHeader("Content-Type", "application/x-www-form-urlencoded");
 
-// ############# HTTP REQUEST ################ //
+    int httpResponseCode = http.POST(data);
+    String payload = http.getString();
 
-void httpRequest(String path)
-{
-  String payload = makeRequest(path);
+    if (httpResponseCode < 0){
+      Serial.println("request error - " + httpResponseCode);
+      
+      display.writeFillRect(99, 3, 8, 8, SSD1306_BLACK);
+      display.drawBitmap(99, 3, failedIcon, 8, 8, 1);
+      display.display();
+      
+      i = 0;
+      volume = 0;
+      
+      updateDisplayTimer();
+    }
 
-  Serial.println(payload);
+    if (httpResponseCode != HTTP_CODE_OK){
+      Serial.println("Falha no Envio");
+      Serial.println(httpResponseCode);
 
-  if (!payload)
-  {
-    setErrorDisplay();
+      display.writeFillRect(99, 3, 8, 8, SSD1306_BLACK);
+      display.drawBitmap(99, 3, failedIcon, 8, 8, 1);
+      display.display();
 
-    return;
-  }
-}
+      i = 0;
+      volume = 0;
+      
+      updateDisplayTimer();
+    }
+    
+    DeserializationError error = deserializeJson(doc, payload);
+    
+    if(error){
+      Serial.println("Deserialization error");
 
-String makeRequest(String path)
-{
-  if (http.begin(client, path) && i == 60)
-  {
-    int httpCode = http.GET();
-
-    if (httpCode < 0)
-    {
-      Serial.println("Request Error - " + httpCode);
+      display.writeFillRect(99, 3, 8, 8, SSD1306_BLACK);
+      display.drawBitmap(99, 3, failedIcon, 8, 8, 1);
+      display.display();
 
       i = 0;
       volume = 0;
       
       updateDisplayTimer();
       
-      return "";
+      return;
     }
 
-    if (httpCode != HTTP_CODE_OK)
-    {
-      setErrorDisplay();
-
-      Serial.println("Sending Failed:");
-      Serial.println(httpCode);
-
-      i = 0;
-      volume = 0;
-
-      updateDisplayTimer();
-
-      return "";
-    }
-    else
-    {
-      setSuccessDisplay();
-
-      i = 0;
-      volume = 0;
+    String responseMessage = doc["message"].as<String>();
+    Serial.println("Response Message: " + responseMessage);
+    
+    i = 0;
+    volume = 0;
       
-      updateDisplayTimer();
+    updateDisplayTimer();
 
-      return "";
-    }
+    setSuccessDisplay();
 
-    String response = http.getString();
     http.end();
-
-    Serial.println("Request Response:" + response);
-
-    i = 0;
-    volume = 0;
-
-    updateDisplayTimer();
-
-    return response;
-  }
-  else if (i == 60)
-  {
-    setErrorDisplay();
-
-    i = 0;
-    volume = 0;
-
-    Serial.println("Request failed.");
-
-    updateDisplayTimer();
-
-    return "";
-  }
-  else
-  {
-    updateDisplayTimer();
-    Serial.println("Wait for the request.");
-    return "";
-  }
+  }    
+  updateDisplayTimer();
 }
 
 // ###################################### //
