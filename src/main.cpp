@@ -14,6 +14,9 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 
+// Json Librarie
+#include <ArduinoJson.h>
+
 // ############# Display Reading ############### //
 
 // Screen Size Variables
@@ -66,6 +69,17 @@ static const unsigned char PROGMEM wifiIcon[] = {
     B00000000
 };
 
+static const unsigned char PROGMEM keyIcon[] = {
+    B00111000,
+    B00111000,
+    B00011000,
+    B00111100,
+    B01100110,
+    B01000010,
+    B01100110,
+    B00111100
+};
+
 static const unsigned char PROGMEM waterIcon[] = {
     B00011000,
     B00011000,
@@ -107,16 +121,15 @@ static const unsigned char PROGMEM successIcon[] = {
 // ############# VARIABLES ############### //
 
 // WiFi Network
-const char* SSID = "Morea";                             // WiFi SSID
-const char* PASSWORD = "morea123**";                    // WiFi Password
+const char* SSID = "Morea-Mobile";                             // WiFi SSID
+const char* PASSWORD = "p@ssw0rd1234**";                    // WiFi Password
 
 // URL Data
-const char *BASE_URL = "http://api.morea-ifs.org";      // WebSite URL (using HTTP and not HTTPS)
+String url = "http://192.168.1.105";      // WebSite URL (using HTTP and not HTTPS)
+String deviceId;
+String apiToken;
+String path;
 
-const int moteId = 1;                                   // MoteId, Defined in the WebSite Database
-const char *secretKey = "7$WMX70b9$";                   // Mote Key, The Server Only Accept Requests if The Key is Correct
-
-char url[512];                                          // This Variable Will be Concatenated With Others to Make the Complete URL 
 
 // Others
 const byte interval = 5;                                // Sample Collection Interval (In Seconds)
@@ -146,6 +159,7 @@ void ICACHE_RAM_ATTR incpulso();
 
 WiFiClient client;
 HTTPClient http;
+JsonDocument doc;
 
 // ############### SETUP ################# //
 
@@ -169,6 +183,7 @@ void setup()
 
   display.writeFastHLine(0, 13, 128, SSD1306_WHITE);
   display.drawBitmap(3, 3, waterIcon, 8, 8, 1);
+  display.drawBitmap(99, 3, loadingIcon, 8, 8, 1);
   display.drawBitmap(109, 3, loadingIcon, 8, 8, 1);
   display.drawBitmap(119, 3, loadingIcon, 8, 8, 1);
   display.drawBitmap(111, 47, moreaLogo, 16, 16, 1);
@@ -183,10 +198,92 @@ void setup()
   display.println("Consumo Atual: 0.00L");
   display.setCursor(3, 26);
   display.println("Vazao: 0.00L/min");
-  display.setCursor(3, 55);
-  display.println("Mote ID: " + String(moteId));
 
   display.display();
+
+  // Get Mac Address
+  String mac_address = WiFi.macAddress();
+  Serial.println("Endereço Mac: " + mac_address);
+
+  // Init Wifi And Connect
+  initWiFi();
+
+  path = url + "/api/identify-device";
+  String data = "macAddress=" + mac_address;
+
+  //  Sending Mac Address to the Server
+  if(http.begin(client, path)){
+    http.addHeader("Content-Type", "application/x-www-form-urlencoded");
+
+    int httpResponseCode = http.POST(data);
+    String payload = http.getString();
+
+    if (httpResponseCode < 0){
+      Serial.println("request error - " + httpResponseCode);
+    }
+
+    if (httpResponseCode != HTTP_CODE_OK){
+      Serial.println("Falha no Envio");
+      Serial.println(httpResponseCode);
+    }
+
+    DeserializationError error = deserializeJson(doc, payload);
+
+    if(error){
+      Serial.println("Deserialization error");
+
+      return;
+    }
+
+    deviceId = doc["id"].as<String>();
+    apiToken = doc["api_token"].as<String>();
+    
+    Serial.println("Device ID: " + deviceId);
+    Serial.println("API Token: " + apiToken);
+
+    http.end();
+  }
+
+  Serial.println();
+  Serial.print("ESP IP Address: http://" + WiFi.localIP().toString());
+
+  path = url + "/api/get-device-ip";
+  data = "deviceId=" + deviceId + "&deviceIp=" + WiFi.localIP().toString() + "&apiToken=" + apiToken;
+  Serial.println();
+
+  //  Sending Ip Address to the Server
+  if (http.begin(client, path)){
+    http.addHeader("Content-Type", "application/x-www-form-urlencoded");
+
+    int httpResponseCode = http.POST(data);
+    String payload = http.getString();
+
+    if (httpResponseCode < 0){
+      Serial.println("request error - " + httpResponseCode);
+    }
+
+    if (httpResponseCode != HTTP_CODE_OK){
+      Serial.println("Falha no Envio");
+      Serial.println(httpResponseCode);
+    }
+    
+    DeserializationError error = deserializeJson(doc, payload);
+    
+    if(error){
+      Serial.println("Deserialization error");
+
+      display.writeFillRect(109, 3, 8, 8, SSD1306_BLACK);
+      display.drawBitmap(109, 3, keyIcon, 8, 8, 1);
+      display.display();
+      
+      return;
+    }
+
+    String responseMessage = doc["message"].as<String>();
+    Serial.println("Response Message: " + responseMessage);
+
+    http.end();
+  }
 }
 
 // ############### LOOP ################# //
@@ -228,9 +325,9 @@ void loop()
     Serial.println("Numbers of Current Collections: " + String(i));
   }
 
-  sprintf(url, "%s/?secretKey=%s&nodeID=%d&consumoAtual=%f", BASE_URL, secretKey, moteId, volume);    // Concatenates the Char Variables and Form the Request URL with the Data
+  path = url + "/api/get-device-data"; // Concatenates the Char Variables and Form the Request URL with the Data
 
-  httpRequest(url);                                       // Call the HTTPRequest Function
+  httpRequest(path);                                       // Call the HTTPRequest Function
 }
 
 // ############# HTTP REQUEST ################ //
@@ -338,8 +435,8 @@ void setDefaultDisplay()
 void setErrorDisplay()
 {    
   // Display Manipulation
-  display.writeFillRect(109, 3, 8, 8, SSD1306_BLACK);
-  display.drawBitmap(109, 3, failedIcon, 8, 8, 1);
+  display.writeFillRect(99, 3, 8, 8, SSD1306_BLACK);
+  display.drawBitmap(99, 3, failedIcon, 8, 8, 1);
 
   display.display();
 }
@@ -347,8 +444,8 @@ void setErrorDisplay()
 void setSuccessDisplay()
 {
   // Display Manipulation
-  display.writeFillRect(109, 3, 8, 8, SSD1306_BLACK);
-  display.drawBitmap(109, 3, successIcon, 8, 8, 1);
+  display.writeFillRect(99, 3, 8, 8, SSD1306_BLACK);
+  display.drawBitmap(99, 3, successIcon, 8, 8, 1);
 
   display.display();
 }
