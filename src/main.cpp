@@ -125,7 +125,7 @@ const char* SSID = "Morea-Mobile";                             // WiFi SSID
 const char* PASSWORD = "p@ssw0rd1234**";                    // WiFi Password
 
 // URL Data
-String url = "http://192.168.1.105";      // WebSite URL (using HTTP and not HTTPS)
+String url = "http://192.168.1.121";      // WebSite URL (using HTTP and not HTTPS)
 String deviceId;
 String apiToken;
 String path;
@@ -280,9 +280,16 @@ void setup()
     }
 
     String responseMessage = doc["message"].as<String>();
-    Serial.println("Response Message: " + responseMessage);
+    String deviceName = doc["deviceName"].as<String>();
+    Serial.println("Response Message: " + responseMessage + " | Device Name: " + deviceName);
 
-    
+    display.setCursor(4, 54);
+
+    if(deviceName == "null") {
+      display.println("Device: Unnamed");  
+    } else {
+      display.println("Device: " + deviceName);    
+    }
     display.writeFillRect(109, 3, 8, 8, SSD1306_BLACK);
     display.drawBitmap(109, 3, keyIcon, 8, 8, 1);
     display.display();
