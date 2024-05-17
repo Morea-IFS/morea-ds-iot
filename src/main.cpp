@@ -3,14 +3,14 @@
 #include <ESP8266WiFi.h>
 
 // HTTP Request Libraries
-#include <WiFiClient.h>
 #include <ESP8266HTTPClient.h>
-#include <stdio.h>
+#include <WiFiClient.h>
 #include <Wire.h>
+#include <stdio.h>
 
 // Layout Libraries
-#include <Layout.h>
 #include <Icons.h>
+#include <Layout.h>
 
 // Json Librarie
 #include <ArduinoJson.h>
@@ -41,9 +41,9 @@ float freq;               // Variable to the Frequency in Hz (Pulses per Second)
 float flowRate = 0;       // Variable to Store The Value in L/min
 float liters = 0;         // Variable for the Water Volume in Each Measurement
 float volume = 0;         // Variable for the Accumulated Water Volume
-int cycles;
-bool DEBUG = false; // DEBUG = 1 (Enables the Debug Mode)
-byte i;             // Act as a Counter Variable
+int cycles = 60;
+bool DEBUG = true; // DEBUG = 1 (Enables the Debug Mode)
+byte i;            // Act as a Counter Variable
 
 // ############# PROTOTYPES ############### //
 
@@ -63,8 +63,7 @@ Icons icons;
 
 // ############### SETUP ################# //
 
-void setup()
-{
+void setup() {
   Serial.begin(115200);
 
   pinMode(PIN_SENSOR, INPUT);                    // Configure pin Sensor as Input
@@ -91,28 +90,24 @@ void setup()
   String data = "macAddress=" + mac_address;
 
   //  Sending Mac Address to the Server
-  if (http.begin(client, path))
-  {
+  if (http.begin(client, path)) {
     http.addHeader("Content-Type", "application/x-www-form-urlencoded");
 
     int httpResponseCode = http.POST(data);
     String payload = http.getString();
 
-    if (httpResponseCode < 0)
-    {
+    if (httpResponseCode < 0) {
       Serial.println("request error - " + httpResponseCode);
     }
 
-    if (httpResponseCode != HTTP_CODE_OK)
-    {
+    if (httpResponseCode != HTTP_CODE_OK) {
       Serial.println("Falha no Envio");
       Serial.println(httpResponseCode);
     }
 
     DeserializationError error = deserializeJson(doc, payload);
 
-    if (error)
-    {
+    if (error) {
       Serial.println("Deserialization error");
 
       return;
@@ -135,28 +130,24 @@ void setup()
   Serial.println();
 
   //  Sending Ip Address to the Server
-  if (http.begin(client, path))
-  {
+  if (http.begin(client, path)) {
     http.addHeader("Content-Type", "application/x-www-form-urlencoded");
 
     int httpResponseCode = http.POST(data);
     String payload = http.getString();
 
-    if (httpResponseCode < 0)
-    {
+    if (httpResponseCode < 0) {
       Serial.println("request error - " + httpResponseCode);
     }
 
-    if (httpResponseCode != HTTP_CODE_OK)
-    {
+    if (httpResponseCode != HTTP_CODE_OK) {
       Serial.println("Falha no Envio");
       Serial.println(httpResponseCode);
     }
 
     DeserializationError error = deserializeJson(doc, payload);
 
-    if (error)
-    {
+    if (error) {
       Serial.println("Deserialization error");
 
       layout.drawIcon(6, icons.failedIcon());
@@ -168,12 +159,9 @@ void setup()
     String deviceName = doc["deviceName"].as<String>();
     Serial.println("Response Message: " + responseMessage + " | Device Name: " + deviceName);
 
-    if (deviceName == "null")
-    {
+    if (deviceName == "null") {
       layout.writeLine(3, "Device: Unnamed");
-    }
-    else
-    {
+    } else {
       layout.writeLine(3, "Device: " + deviceName);
     }
     layout.drawIcon(6, icons.keyIcon());
@@ -184,8 +172,7 @@ void setup()
 
 // ############### LOOP ################# //
 
-void loop()
-{
+void loop() {
   if (WiFi.status() != WL_CONNECTED) // Verify if WiFi is Connected
   {
     layout.drawIcon(7, icons.loadingIcon());
@@ -193,14 +180,11 @@ void loop()
     initWiFi(); // Try to Reconnect if Not
   }
 
-  if (digitalRead(DEBUG_BUTTON_PIN) == HIGH && DEBUG == false)
-  {
+  if (digitalRead(DEBUG_BUTTON_PIN) == HIGH && DEBUG == false) {
     DEBUG = true;
     cycles = 3;
     Serial.println("Debug mode ativado");
-  }
-  else if (digitalRead(DEBUG_BUTTON_PIN) == HIGH && DEBUG == true)
-  {
+  } else if (digitalRead(DEBUG_BUTTON_PIN) == HIGH && DEBUG == true) {
     DEBUG = false;
     cycles = 60;
     Serial.println("Debug mode desativado");
@@ -238,15 +222,13 @@ void loop()
   Serial.println();
 
   //  Sending Ip Address to the Server
-  if (http.begin(client, path) && i == cycles)
-  {
+  if (http.begin(client, path) && i == cycles) {
     http.addHeader("Content-Type", "application/x-www-form-urlencoded");
 
     int httpResponseCode = http.POST(data);
     String payload = http.getString();
 
-    if (httpResponseCode < 0)
-    {
+    if (httpResponseCode < 0) {
       Serial.println("request error - " + httpResponseCode);
 
       layout.drawIcon(5, icons.failedIcon());
@@ -257,8 +239,7 @@ void loop()
       layout.updateTimer(i, interval);
     }
 
-    if (httpResponseCode != HTTP_CODE_OK)
-    {
+    if (httpResponseCode != HTTP_CODE_OK) {
       Serial.println("Falha no Envio");
       Serial.println(httpResponseCode);
 
@@ -272,8 +253,7 @@ void loop()
 
     DeserializationError error = deserializeJson(doc, payload);
 
-    if (error)
-    {
+    if (error) {
       Serial.println("Deserialization error");
 
       layout.drawIcon(5, icons.failedIcon());
@@ -300,19 +280,16 @@ void loop()
   layout.updateTimer(i, interval);
 }
 
-void ICACHE_RAM_ATTR incpulso()
-{
+void ICACHE_RAM_ATTR incpulso() {
   countPulse++; // Increments Pulse Variable
 }
 
-void initWiFi()
-{
+void initWiFi() {
   delay(10);
   Serial.println("Connecting to: " + String(SSID));
 
   WiFi.begin(SSID, PASSWORD);
-  while (WiFi.status() != WL_CONNECTED)
-  {
+  while (WiFi.status() != WL_CONNECTED) {
     delay(100);
     Serial.print(".");
   }
