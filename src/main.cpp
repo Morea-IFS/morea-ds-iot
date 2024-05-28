@@ -42,7 +42,7 @@ float flowRate = 0;       // Variable to Store The Value in L/min
 float liters = 0;         // Variable for the Water Volume in Each Measurement
 float volume = 0;         // Variable for the Accumulated Water Volume
 int cycles = 60;
-bool DEBUG = true; // DEBUG = 1 (Enables the Debug Mode)
+bool DEBUG = true; // DEBUG = true (Enables the Debug Mode)
 byte i;            // Act as a Counter Variable
 
 // ############# PROTOTYPES ############### //
@@ -183,14 +183,20 @@ void loop() {
   if (digitalRead(DEBUG_BUTTON_PIN) == HIGH && DEBUG == false) {
     DEBUG = true;
     cycles = 3;
-    Serial.println("Debug mode ativado");
+    i = 0;
+
+    layout.drawIcon(1, icons.wrenchIcon());
+
+    Serial.println("Debug mode ativado.");
   } else if (digitalRead(DEBUG_BUTTON_PIN) == HIGH && DEBUG == true) {
     DEBUG = false;
     cycles = 60;
-    Serial.println("Debug mode desativado");
-  }
+    i = 0;
 
-  Serial.println(DEBUG);
+    layout.eraseIcon(1);
+
+    Serial.println("Debug mode desativado.");
+  }
 
   // ############### CODE FOR THE SENSOR ################# //
   countPulse = 0; // Zero the Variable
@@ -236,7 +242,7 @@ void loop() {
       i = 0;
       volume = 0;
 
-      layout.updateTimer(i, interval);
+      layout.updateTimer(i, interval, cycles);
     }
 
     if (httpResponseCode != HTTP_CODE_OK) {
@@ -248,7 +254,7 @@ void loop() {
       i = 0;
       volume = 0;
 
-      layout.updateTimer(i, interval);
+      layout.updateTimer(i, interval, cycles);
     }
 
     DeserializationError error = deserializeJson(doc, payload);
@@ -261,7 +267,7 @@ void loop() {
       i = 0;
       volume = 0;
 
-      layout.updateTimer(i, interval);
+      layout.updateTimer(i, interval, cycles);
 
       return;
     }
@@ -272,12 +278,12 @@ void loop() {
     i = 0;
     volume = 0;
 
-    layout.updateTimer(i, interval);
+    layout.updateTimer(i, interval, cycles);
     layout.drawIcon(5, icons.successIcon());
 
     http.end();
   }
-  layout.updateTimer(i, interval);
+  layout.updateTimer(i, interval, cycles);
 }
 
 void ICACHE_RAM_ATTR incpulso() {
