@@ -102,7 +102,12 @@ void Layout::writeLine(int index, String text) {
   display.setTextSize(1);
   display.setTextColor(SSD1306_WHITE);
 
-  display.writeFillRect(3, displayTextYAxis[index], 124, 8, SSD1306_BLACK);
+  if (index == 3) {
+    display.writeFillRect(3, displayTextYAxis[index], 100, 8, SSD1306_BLACK);
+  } else {
+    display.writeFillRect(3, displayTextYAxis[index], 124, 8, SSD1306_BLACK);
+  }
+
   display.setCursor(3, displayTextYAxis[index]);
 
   display.println(text);

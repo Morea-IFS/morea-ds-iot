@@ -5,6 +5,7 @@
 // HTTP Request Libraries
 #include <ESP8266HTTPClient.h>
 #include <WiFiClient.h>
+#include <WiFiClientSecureBearSSL.h>
 #include <Wire.h>
 #include <stdio.h>
 
@@ -23,11 +24,13 @@
 // ############# VARIABLES ############### //
 
 // WiFi Network
-const char *SSID = "MINASTELECOM_1447"; // WiFi SSID
-const char *PASSWORD = "91006531t";     // WiFi Password
+const char *SSID = "network";      // WiFi SSID
+const char *PASSWORD = "password"; // WiFi Password
 
 // URL Data
-String url = "http://morea-ifs.org"; // WebSite URL (using HTTP and not HTTPS)
+String url = "https://server.address"; // WebSite URL (using HTTP and not HTTPS)
+const uint8_t fingerprint[20] = {};    // Server fingerprint
+
 String deviceId;
 String apiToken;
 String path;
@@ -66,6 +69,9 @@ Icons icons;
 void setup() {
   Serial.begin(115200);
 
+  std::unique_ptr<BearSSL::WiFiClientSecure> client(new BearSSL::WiFiClientSecure);
+  client->setFingerprint(fingerprint);
+
   pinMode(PIN_SENSOR, INPUT);                    // Configure pin Sensor as Input
   pinMode(DEBUG_BUTTON_PIN, INPUT);              // Configure button sensor as input
   attachInterrupt(PIN_SENSOR, incpulso, RISING); // Associate Sensor pin for Interrupt
@@ -90,7 +96,7 @@ void setup() {
   String data = "macAddress=" + mac_address;
 
   //  Sending Mac Address to the Server
-  if (http.begin(client, path)) {
+  if (http.begin(*client, path)) {
     http.addHeader("Content-Type", "application/x-www-form-urlencoded");
 
     int httpResponseCode = http.POST(data);
@@ -130,7 +136,7 @@ void setup() {
   Serial.println();
 
   //  Sending Ip Address to the Server
-  if (http.begin(client, path)) {
+  if (http.begin(*client, path)) {
     http.addHeader("Content-Type", "application/x-www-form-urlencoded");
 
     int httpResponseCode = http.POST(data);
@@ -227,8 +233,12 @@ void loop() {
   String data = "deviceId=" + deviceId + "&apiToken=" + apiToken + "&volume=" + volume;
   Serial.println();
 
+  std::unique_ptr<BearSSL::WiFiClientSecure> client(new BearSSL::WiFiClientSecure);
+  client->setFingerprint(fingerprint);
+
   //  Sending Ip Address to the Server
-  if (http.begin(client, path) && i == cycles) {
+  if (http.begin(*client, path) && i == cycles) {
+
     http.addHeader("Content-Type", "application/x-www-form-urlencoded");
 
     int httpResponseCode = http.POST(data);
