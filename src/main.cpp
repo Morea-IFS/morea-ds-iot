@@ -24,12 +24,15 @@
 // ############# VARIABLES ############### //
 
 // WiFi Network
-const char *SSID = "network";      // WiFi SSID
-const char *PASSWORD = "password"; // WiFi Password
+// const char *SSID = "MINASTELECOM_1447"; // WiFi SSID
+// const char *PASSWORD = "91006531t";     // WiFi Password
+const char *SSID = "Morea-Mobile";       // WiFi SSID
+const char *PASSWORD = "p@ssw0rd1234**"; // WiFi Password
 
 // URL Data
-String url = "https://server.address"; // WebSite URL (using HTTP and not HTTPS)
-const uint8_t fingerprint[20] = {};    // Server fingerprint
+// String url = "https://192.168.0.105";                                                                                                                  // WebSite URL (using HTTP and not HTTPS)
+String url = "https://192.168.1.112";                                                                                                                     // WebSite URL (using HTTP and not HTTPS)
+const uint8_t fingerprint[20] = {0x44, 0x5D, 0x07, 0x68, 0x0F, 0xBF, 0x25, 0x26, 0xE4, 0xB5, 0x04, 0x35, 0x6D, 0x91, 0xAD, 0x96, 0xFE, 0xBF, 0x40, 0x8B}; // Server fingerprint
 
 String deviceId;
 String apiToken;
