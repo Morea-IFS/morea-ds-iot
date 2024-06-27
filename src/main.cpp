@@ -207,7 +207,6 @@ void loop() {
   if (http.begin(*client, path) && i == cycles) {
     // Data serializing
     doc["apiToken"] = apiToken;
-    doc["volume"] = volume;
     doc["measure"][0]["type"] = 1;
     doc["measure"][0]["value"] = volume;
 
