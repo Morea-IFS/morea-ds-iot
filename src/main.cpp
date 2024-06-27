@@ -24,17 +24,17 @@
 // ############# VARIABLES ############### //
 
 // WiFi Network
-// const char *SSID = "MINASTELECOM_1447"; // WiFi SSID
-// const char *PASSWORD = "91006531t";     // WiFi Password
-const char *SSID = "Morea-Mobile";       // WiFi SSID
-const char *PASSWORD = "p@ssw0rd1234**"; // WiFi Password
+const char *SSID = "MINASTELECOM_1447"; // WiFi SSID
+const char *PASSWORD = "91006531t";     // WiFi Password
+// const char *SSID = "Morea-Mobile";       // WiFi SSID
+// const char *PASSWORD = "p@ssw0rd1234**"; // WiFi Password
 
 // URL Data
 // String url = "https://192.168.0.105";                                                                                                                  // WebSite URL (using HTTP and not HTTPS)
-String url = "https://192.168.1.112";                                                                                                                     // WebSite URL (using HTTP and not HTTPS)
+String url = "https://192.168.0.105";                                                                                                                     // WebSite URL (using HTTP and not HTTPS)
 const uint8_t fingerprint[20] = {0x44, 0x5D, 0x07, 0x68, 0x0F, 0xBF, 0x25, 0x26, 0xE4, 0xB5, 0x04, 0x35, 0x6D, 0x91, 0xAD, 0x96, 0xFE, 0xBF, 0x40, 0x8B}; // Server fingerprint
 
-String deviceId;
+String serializedData;
 String apiToken;
 String path;
 
@@ -47,7 +47,7 @@ float freq;               // Variable to the Frequency in Hz (Pulses per Second)
 float flowRate = 0;       // Variable to Store The Value in L/min
 float liters = 0;         // Variable for the Water Volume in Each Measurement
 float volume = 0;         // Variable for the Accumulated Water Volume
-int cycles = 60;
+int cycles = 5;
 bool DEBUG = true; // DEBUG = true (Enables the Debug Mode)
 byte i;            // Act as a Counter Variable
 
@@ -89,20 +89,23 @@ void setup() {
   layout.drawIcon(7, icons.loadingIcon());
 
   // Get Mac Address
-  String mac_address = WiFi.macAddress();
-  Serial.println("Endereço Mac: " + mac_address);
+  String macAddress = WiFi.macAddress();
+  Serial.println("Endereço Mac: " + macAddress);
 
   // Init Wifi And Connect
   initWiFi();
 
-  path = url + "/api/identify-device";
-  String data = "macAddress=" + mac_address;
+  path = url + "/api/authenticate";
 
   //  Sending Mac Address to the Server
   if (http.begin(*client, path)) {
-    http.addHeader("Content-Type", "application/x-www-form-urlencoded");
+    // Data serializing
+    doc["macAddress"] = macAddress;
+    doc["deviceIp"] = WiFi.localIP().toString();
+    serializeJson(doc, serializedData);
 
-    int httpResponseCode = http.POST(data);
+    http.addHeader("Content-Type", "application/json");
+    int httpResponseCode = http.POST(serializedData);
     String payload = http.getString();
 
     if (httpResponseCode < 0) {
@@ -118,55 +121,16 @@ void setup() {
 
     if (error) {
       Serial.println("Deserialization error");
-
-      return;
-    }
-
-    deviceId = doc["id"].as<String>();
-    apiToken = doc["api_token"].as<String>();
-
-    Serial.println("Device ID: " + deviceId);
-    Serial.println("API Token: " + apiToken);
-
-    http.end();
-  }
-
-  Serial.println();
-  Serial.print("ESP IP Address: http://" + WiFi.localIP().toString());
-
-  path = url + "/api/get-device-ip";
-  data = "deviceId=" + deviceId + "&deviceIp=" + WiFi.localIP().toString() + "&apiToken=" + apiToken;
-  Serial.println();
-
-  //  Sending Ip Address to the Server
-  if (http.begin(*client, path)) {
-    http.addHeader("Content-Type", "application/x-www-form-urlencoded");
-
-    int httpResponseCode = http.POST(data);
-    String payload = http.getString();
-
-    if (httpResponseCode < 0) {
-      Serial.println("request error - " + httpResponseCode);
-    }
-
-    if (httpResponseCode != HTTP_CODE_OK) {
-      Serial.println("Falha no Envio");
-      Serial.println(httpResponseCode);
-    }
-
-    DeserializationError error = deserializeJson(doc, payload);
-
-    if (error) {
-      Serial.println("Deserialization error");
-
       layout.drawIcon(6, icons.failedIcon());
 
       return;
     }
 
-    String responseMessage = doc["message"].as<String>();
     String deviceName = doc["deviceName"].as<String>();
-    Serial.println("Response Message: " + responseMessage + " | Device Name: " + deviceName);
+    apiToken = doc["api_token"].as<String>();
+
+    Serial.println("Device Name: " + deviceName);
+    Serial.println("API Token: " + apiToken);
 
     if (deviceName == "null") {
       layout.writeLine(3, "Device: Unnamed");
@@ -175,6 +139,7 @@ void setup() {
     }
     layout.drawIcon(6, icons.keyIcon());
 
+    doc.clear();
     http.end();
   }
 }
@@ -232,19 +197,24 @@ void loop() {
     Serial.println("Numbers of Current Collections: " + String(i));
   }
 
-  path = url + "/api/get-device-data";
-  String data = "deviceId=" + deviceId + "&apiToken=" + apiToken + "&volume=" + volume;
-  Serial.println();
+  path = url + "/api/store-data";
 
-  std::unique_ptr<BearSSL::WiFiClientSecure> client(new BearSSL::WiFiClientSecure);
+  std::unique_ptr<BearSSL::WiFiClientSecure>
+      client(new BearSSL::WiFiClientSecure);
   client->setFingerprint(fingerprint);
 
   //  Sending Ip Address to the Server
   if (http.begin(*client, path) && i == cycles) {
+    // Data serializing
+    doc["apiToken"] = apiToken;
+    doc["volume"] = volume;
+    doc["measure"][0]["type"] = 1;
+    doc["measure"][0]["value"] = volume;
 
-    http.addHeader("Content-Type", "application/x-www-form-urlencoded");
+    serializeJson(doc, serializedData);
 
-    int httpResponseCode = http.POST(data);
+    http.addHeader("Content-Type", "application/json");
+    int httpResponseCode = http.POST(serializedData);
     String payload = http.getString();
 
     if (httpResponseCode < 0) {
@@ -282,6 +252,9 @@ void loop() {
 
       layout.updateTimer(i, interval, cycles);
 
+      doc.clear();
+      http.end();
+
       return;
     }
 
@@ -294,6 +267,7 @@ void loop() {
     layout.updateTimer(i, interval, cycles);
     layout.drawIcon(5, icons.successIcon());
 
+    doc.clear();
     http.end();
   }
   layout.updateTimer(i, interval, cycles);
