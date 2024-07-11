@@ -5,6 +5,7 @@
 // HTTP Request Libraries
 #include <ESP8266HTTPClient.h>
 #include <WiFiClient.h>
+#include <WiFiClientSecureBearSSL.h>
 #include <Wire.h>
 #include <stdio.h>
 
@@ -25,10 +26,15 @@
 // WiFi Network
 const char *SSID = "MINASTELECOM_1447"; // WiFi SSID
 const char *PASSWORD = "91006531t";     // WiFi Password
+// const char *SSID = "Morea-Mobile";       // WiFi SSID
+// const char *PASSWORD = "p@ssw0rd1234**"; // WiFi Password
 
 // URL Data
-String url = "http://morea-ifs.org"; // WebSite URL (using HTTP and not HTTPS)
-String deviceId;
+// String url = "https://192.168.0.105";                                                                                                                  // WebSite URL (using HTTP and not HTTPS)
+String url = "https://192.168.0.105";                                                                                                                     // WebSite URL (using HTTP and not HTTPS)
+const uint8_t fingerprint[20] = {0x44, 0x5D, 0x07, 0x68, 0x0F, 0xBF, 0x25, 0x26, 0xE4, 0xB5, 0x04, 0x35, 0x6D, 0x91, 0xAD, 0x96, 0xFE, 0xBF, 0x40, 0x8B}; // Server fingerprint
+
+String serializedData;
 String apiToken;
 String path;
 
@@ -41,8 +47,8 @@ float freq;               // Variable to the Frequency in Hz (Pulses per Second)
 float flowRate = 0;       // Variable to Store The Value in L/min
 float liters = 0;         // Variable for the Water Volume in Each Measurement
 float volume = 0;         // Variable for the Accumulated Water Volume
-int cycles = 60;
-bool DEBUG = true; // DEBUG = 1 (Enables the Debug Mode)
+int cycles = 5;
+bool DEBUG = true; // DEBUG = true (Enables the Debug Mode)
 byte i;            // Act as a Counter Variable
 
 // ############# PROTOTYPES ############### //
@@ -66,6 +72,9 @@ Icons icons;
 void setup() {
   Serial.begin(115200);
 
+  std::unique_ptr<BearSSL::WiFiClientSecure> client(new BearSSL::WiFiClientSecure);
+  client->setFingerprint(fingerprint);
+
   pinMode(PIN_SENSOR, INPUT);                    // Configure pin Sensor as Input
   pinMode(DEBUG_BUTTON_PIN, INPUT);              // Configure button sensor as input
   attachInterrupt(PIN_SENSOR, incpulso, RISING); // Associate Sensor pin for Interrupt
@@ -80,20 +89,23 @@ void setup() {
   layout.drawIcon(7, icons.loadingIcon());
 
   // Get Mac Address
-  String mac_address = WiFi.macAddress();
-  Serial.println("Endereço Mac: " + mac_address);
+  String macAddress = WiFi.macAddress();
+  Serial.println("Endereço Mac: " + macAddress);
 
   // Init Wifi And Connect
   initWiFi();
 
-  path = url + "/api/identify-device";
-  String data = "macAddress=" + mac_address;
+  path = url + "/api/authenticate";
 
   //  Sending Mac Address to the Server
-  if (http.begin(client, path)) {
-    http.addHeader("Content-Type", "application/x-www-form-urlencoded");
+  if (http.begin(*client, path)) {
+    // Data serializing
+    doc["macAddress"] = macAddress;
+    doc["deviceIp"] = WiFi.localIP().toString();
+    serializeJson(doc, serializedData);
 
-    int httpResponseCode = http.POST(data);
+    http.addHeader("Content-Type", "application/json");
+    int httpResponseCode = http.POST(serializedData);
     String payload = http.getString();
 
     if (httpResponseCode < 0) {
@@ -109,55 +121,16 @@ void setup() {
 
     if (error) {
       Serial.println("Deserialization error");
-
-      return;
-    }
-
-    deviceId = doc["id"].as<String>();
-    apiToken = doc["api_token"].as<String>();
-
-    Serial.println("Device ID: " + deviceId);
-    Serial.println("API Token: " + apiToken);
-
-    http.end();
-  }
-
-  Serial.println();
-  Serial.print("ESP IP Address: http://" + WiFi.localIP().toString());
-
-  path = url + "/api/get-device-ip";
-  data = "deviceId=" + deviceId + "&deviceIp=" + WiFi.localIP().toString() + "&apiToken=" + apiToken;
-  Serial.println();
-
-  //  Sending Ip Address to the Server
-  if (http.begin(client, path)) {
-    http.addHeader("Content-Type", "application/x-www-form-urlencoded");
-
-    int httpResponseCode = http.POST(data);
-    String payload = http.getString();
-
-    if (httpResponseCode < 0) {
-      Serial.println("request error - " + httpResponseCode);
-    }
-
-    if (httpResponseCode != HTTP_CODE_OK) {
-      Serial.println("Falha no Envio");
-      Serial.println(httpResponseCode);
-    }
-
-    DeserializationError error = deserializeJson(doc, payload);
-
-    if (error) {
-      Serial.println("Deserialization error");
-
       layout.drawIcon(6, icons.failedIcon());
 
       return;
     }
 
-    String responseMessage = doc["message"].as<String>();
     String deviceName = doc["deviceName"].as<String>();
-    Serial.println("Response Message: " + responseMessage + " | Device Name: " + deviceName);
+    apiToken = doc["api_token"].as<String>();
+
+    Serial.println("Device Name: " + deviceName);
+    Serial.println("API Token: " + apiToken);
 
     if (deviceName == "null") {
       layout.writeLine(3, "Device: Unnamed");
@@ -166,6 +139,7 @@ void setup() {
     }
     layout.drawIcon(6, icons.keyIcon());
 
+    doc.clear();
     http.end();
   }
 }
@@ -183,14 +157,20 @@ void loop() {
   if (digitalRead(DEBUG_BUTTON_PIN) == HIGH && DEBUG == false) {
     DEBUG = true;
     cycles = 3;
-    Serial.println("Debug mode ativado");
+    i = 0;
+
+    layout.drawIcon(1, icons.wrenchIcon());
+
+    Serial.println("Debug mode ativado.");
   } else if (digitalRead(DEBUG_BUTTON_PIN) == HIGH && DEBUG == true) {
     DEBUG = false;
     cycles = 60;
-    Serial.println("Debug mode desativado");
-  }
+    i = 0;
 
-  Serial.println(DEBUG);
+    layout.eraseIcon(1);
+
+    Serial.println("Debug mode desativado.");
+  }
 
   // ############### CODE FOR THE SENSOR ################# //
   countPulse = 0; // Zero the Variable
@@ -217,15 +197,23 @@ void loop() {
     Serial.println("Numbers of Current Collections: " + String(i));
   }
 
-  path = url + "/api/get-device-data";
-  String data = "deviceId=" + deviceId + "&apiToken=" + apiToken + "&volume=" + volume;
-  Serial.println();
+  path = url + "/api/store-data";
+
+  std::unique_ptr<BearSSL::WiFiClientSecure>
+      client(new BearSSL::WiFiClientSecure);
+  client->setFingerprint(fingerprint);
 
   //  Sending Ip Address to the Server
-  if (http.begin(client, path) && i == cycles) {
-    http.addHeader("Content-Type", "application/x-www-form-urlencoded");
+  if (http.begin(*client, path) && i == cycles) {
+    // Data serializing
+    doc["apiToken"] = apiToken;
+    doc["measure"][0]["type"] = 1;
+    doc["measure"][0]["value"] = volume;
 
-    int httpResponseCode = http.POST(data);
+    serializeJson(doc, serializedData);
+
+    http.addHeader("Content-Type", "application/json");
+    int httpResponseCode = http.POST(serializedData);
     String payload = http.getString();
 
     if (httpResponseCode < 0) {
@@ -236,7 +224,7 @@ void loop() {
       i = 0;
       volume = 0;
 
-      layout.updateTimer(i, interval);
+      layout.updateTimer(i, interval, cycles);
     }
 
     if (httpResponseCode != HTTP_CODE_OK) {
@@ -248,7 +236,7 @@ void loop() {
       i = 0;
       volume = 0;
 
-      layout.updateTimer(i, interval);
+      layout.updateTimer(i, interval, cycles);
     }
 
     DeserializationError error = deserializeJson(doc, payload);
@@ -261,7 +249,10 @@ void loop() {
       i = 0;
       volume = 0;
 
-      layout.updateTimer(i, interval);
+      layout.updateTimer(i, interval, cycles);
+
+      doc.clear();
+      http.end();
 
       return;
     }
@@ -272,12 +263,13 @@ void loop() {
     i = 0;
     volume = 0;
 
-    layout.updateTimer(i, interval);
+    layout.updateTimer(i, interval, cycles);
     layout.drawIcon(5, icons.successIcon());
 
+    doc.clear();
     http.end();
   }
-  layout.updateTimer(i, interval);
+  layout.updateTimer(i, interval, cycles);
 }
 
 void ICACHE_RAM_ATTR incpulso() {
