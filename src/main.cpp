@@ -24,14 +24,14 @@
 // ############# VARIABLES ############### //
 
 // WiFi Network
-const char *SSID = "MINASTELECOM_1447"; // WiFi SSID
-const char *PASSWORD = "91006531t";     // WiFi Password
+const char *SSID = "RESENDE";      // WiFi SSID
+const char *PASSWORD = "05071998"; // WiFi Password
 // const char *SSID = "Morea-Mobile";       // WiFi SSID
 // const char *PASSWORD = "p@ssw0rd1234**"; // WiFi Password
 
 // URL Data
 // String url = "https://192.168.0.105";                                                                                                                  // WebSite URL (using HTTP and not HTTPS)
-String url = "https://192.168.0.105";                                                                                                                     // WebSite URL (using HTTP and not HTTPS)
+String url = "https://192.168.18.10";                                                                                                                     // WebSite URL (using HTTP and not HTTPS)
 const uint8_t fingerprint[20] = {0x44, 0x5D, 0x07, 0x68, 0x0F, 0xBF, 0x25, 0x26, 0xE4, 0xB5, 0x04, 0x35, 0x6D, 0x91, 0xAD, 0x96, 0xFE, 0xBF, 0x40, 0x8B}; // Server fingerprint
 
 String serializedData;
@@ -47,7 +47,7 @@ float freq;               // Variable to the Frequency in Hz (Pulses per Second)
 float flowRate = 0;       // Variable to Store The Value in L/min
 float liters = 0;         // Variable for the Water Volume in Each Measurement
 float volume = 0;         // Variable for the Accumulated Water Volume
-int cycles = 5;
+int cycles = 60;
 bool DEBUG = true; // DEBUG = true (Enables the Debug Mode)
 byte i;            // Act as a Counter Variable
 
@@ -112,7 +112,7 @@ void setup() {
       Serial.println("request error - " + httpResponseCode);
     }
 
-    if (httpResponseCode != HTTP_CODE_OK) {
+    if (httpResponseCode != HTTP_CODE_OK && httpResponseCode != HTTP_CODE_CREATED) {
       Serial.println("Falha no Envio");
       Serial.println(httpResponseCode);
     }
@@ -197,6 +197,7 @@ void loop() {
     Serial.println("Numbers of Current Collections: " + String(i));
   }
 
+  String macAddress = WiFi.macAddress();
   path = url + "/api/store-data";
 
   std::unique_ptr<BearSSL::WiFiClientSecure>
@@ -207,6 +208,7 @@ void loop() {
   if (http.begin(*client, path) && i == cycles) {
     // Data serializing
     doc["apiToken"] = apiToken;
+    doc["macAddress"] = macAddress;
     doc["measure"][0]["type"] = 1;
     doc["measure"][0]["value"] = volume;
 
