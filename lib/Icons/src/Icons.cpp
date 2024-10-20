@@ -89,6 +89,16 @@ const unsigned char Icons::_wrenchIcon[] PROGMEM = {
     B00011000,
     B00011000};
 
+const unsigned char Icons::_electricityIcon[] PROGMEM = {
+    B00011111,
+    B00111110,
+    B01111100,
+    B11111111,
+    B00111110,
+    B00111100,
+    B00111000,
+    B00110000};
+
 Icons::Icons() {}
 
 const unsigned char *Icons::sparcLogo()
@@ -129,4 +139,9 @@ const unsigned char *Icons::waterIcon()
 const unsigned char *Icons::wrenchIcon()
 {
     return _wrenchIcon;
+}
+
+const unsigned char *Icons::electricityIcon()
+{
+    return _electricityIcon;
 }

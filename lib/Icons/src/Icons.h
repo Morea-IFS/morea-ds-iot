@@ -15,6 +15,7 @@ public:
     static const unsigned char *wifiIcon();
     static const unsigned char *waterIcon();
     static const unsigned char *wrenchIcon();
+    static const unsigned char *electricityIcon();
 
 private:
     static const unsigned char _sparcLogo[] PROGMEM;
@@ -25,6 +26,7 @@ private:
     static const unsigned char _wifiIcon[] PROGMEM;
     static const unsigned char _waterIcon[] PROGMEM;
     static const unsigned char _wrenchIcon[] PROGMEM;
+    static const unsigned char _electricityIcon[] PROGMEM;
 };
 
 #endif
