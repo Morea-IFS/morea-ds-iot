@@ -24,15 +24,13 @@
 // ############# VARIABLES ############### //
 
 // WiFi Network
-const char *SSID = "RESENDE";      // WiFi SSID
-const char *PASSWORD = "05071998"; // WiFi Password
-// const char *SSID = "Morea-Mobile";       // WiFi SSID
-// const char *PASSWORD = "p@ssw0rd1234**"; // WiFi Password
+const char *SSID = "IFSLIVRE";      // WiFi SSID
+const char *PASSWORD = ""; // WiFi Password
+
 
 // URL Data
-// String url = "https://192.168.0.105";                                                                                                                  // WebSite URL (using HTTP and not HTTPS)
-String url = "https://192.168.18.10";                                                                                                                     // WebSite URL (using HTTP and not HTTPS)
-const uint8_t fingerprint[20] = {0x44, 0x5D, 0x07, 0x68, 0x0F, 0xBF, 0x25, 0x26, 0xE4, 0xB5, 0x04, 0x35, 0x6D, 0x91, 0xAD, 0x96, 0xFE, 0xBF, 0x40, 0x8B}; // Server fingerprint
+String url = "https://api.morea-ifs.org/";                                                                                                                     // WebSite URL
+const uint8_t fingerprint[20] = {0x6F, 0x53, 0x23, 0x2D, 0x04, 0x09, 0x2F, 0xF1, 0x9D, 0xBD, 0x43, 0xA4, 0xA3, 0xF6, 0xF3, 0x2F, 0x39, 0xAC,0xAF,0xCB}; // Server fingerprint
 
 String serializedData;
 String apiToken;
@@ -95,7 +93,7 @@ void setup() {
   // Init Wifi And Connect
   initWiFi();
 
-  path = url + "/api/authenticate";
+  path = url + "/authenticate";
 
   //  Sending Mac Address to the Server
   if (http.begin(*client, path)) {
@@ -198,7 +196,7 @@ void loop() {
   }
 
   String macAddress = WiFi.macAddress();
-  path = url + "/api/store-data";
+  path = url + "/store-data";
 
   std::unique_ptr<BearSSL::WiFiClientSecure>
       client(new BearSSL::WiFiClientSecure);
