@@ -281,6 +281,7 @@ void setupOTA() {
   });
   ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
     char buffer[64];
+    sprintf(buffer, "Progresso: %u%%", (progress / (total / 100)));
     TelnetStream.println(buffer); // Progress only to Telnet to avoid flooding Serial
   });
   ArduinoOTA.onError([](ota_error_t error) {
