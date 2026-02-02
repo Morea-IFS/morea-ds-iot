@@ -33,16 +33,16 @@ EnergyMonitor monitor;
 // ############# VARIABLES ###############
 
 // WiFi Network
-const char *SSID = "";     // WiFi SSID
-const char *PASSWORD = ""; // WiFi Password
+const char *SSID = "Morea-Mobile";     // WiFi SSID
+const char *PASSWORD = "p@ssw0rd1234**"; // WiFi Password
 
 // OTA Config
-const char* OTA_HOSTNAME = "";
-const char* OTA_PASSWORD = ""; 
+const char* OTA_HOSTNAME = "E-MOTE-OTA";
+const char* OTA_PASSWORD = "total123**"; 
 
 // URL Data
 String url = "https://morea-ifs.org/api";
-const uint8_t fingerprint[20] = {};
+const uint8_t fingerprint[20] = {0x6F, 0x53, 0x23, 0x2D, 0x04, 0x09, 0x2F, 0xF1, 0x9D, 0xBD, 0x43, 0xA4, 0xA3, 0xF6, 0xF3, 0x2F, 0x39, 0xAC,0xAF,0xCB};
 
 // API and Device Variables
 String apiToken;
@@ -57,7 +57,7 @@ float med_amperes = 0;
 float watt = 0;
 float kWh = 0;
 unsigned long lastMeasurement = 0;
-const int tensao = 127;
+int voltage = 127;
 int cycles = 60;
 bool DEBUG = true;
 byte i = 0;
@@ -88,7 +88,7 @@ Icons icons;
 
 void setup() {
   Serial.begin(115200);
-  monitor.current(PIN_SENSOR, 111.11);
+  monitor.current(PIN_SENSOR, 88.188);
   client.setInsecure();
 
   pinMode(DEBUG_BUTTON_PIN, INPUT_PULLUP);
@@ -130,6 +130,15 @@ void setup() {
       } else {
         String deviceName = doc["deviceName"].as<String>();
         apiToken = doc["api_token"].as<String>();
+        
+        if (doc.containsKey("voltage")) {
+          voltage = doc["voltage"].as<int>();
+          printLog("Voltage: " + String(voltage) + "V");
+          layout.writeLine(4, "Voltage: " + String(voltage) + "V");
+        } else {
+          voltage = 127;
+          layout.writeLine(4, "Voltage: N/A");
+        }
 
         printLog("Device Name: " + deviceName);
         printLog("API Token: " + apiToken);
@@ -173,7 +182,7 @@ void loop() {
 
     amperes = monitor.calcIrms(1480);
     med_amperes +=  amperes;
-    watt = amperes * tensao;
+    watt = amperes * voltage; 
 
     unsigned long currentTime = millis();
     if (lastMeasurement > 0) {
